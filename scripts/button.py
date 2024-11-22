@@ -5,11 +5,13 @@ class textbox():
     def __init__(self, game, surf, coords, text, type):
         self.game = game
         self.surf = surf
-        self.coords = coords
+        coords = coords
         self.msg = text
         textl = self.textlength(game, text)
-        self.size = (textl+4, 16)
-        self.textcoords = (self.coords[0]+2, self.coords[1]+1)
+        size = (textl+4, 16)
+        self.textcoords = (coords[0]+2, coords[1]+1)
+        self.rect = pygame.Rect(coords, size)
+        self.type = type
 
     def textlength(self, game, text):
         width = 0
@@ -18,10 +20,11 @@ class textbox():
         return width
 
     def update(self, game, surf):
-        rect = pygame.Rect(self.coords, self.size)
         colour = (255, 0, 0)
-        if rect.collidepoint(game.mx, game.my):
+        if self.rect.collidepoint(game.mx, game.my):
             colour = (0, 255, 0) 
-        pygame.draw.rect(surf, colour, rect)
+            if game.click == True:
+                game.gamestate = self.type
+                game.b()
+        pygame.draw.rect(surf, colour, self.rect)
         text(game, surf, self.textcoords, self.msg)
-        pygame.display.update()

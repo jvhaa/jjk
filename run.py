@@ -18,6 +18,7 @@ class Game:
         self.display = pygame.Surface((320, 240))
         self.clock = pygame.time.Clock()
         self.move = [False, False]
+        self.click = False
 
         self.assets = {
             "alphabet" : load_images("alphabet"),
@@ -64,13 +65,45 @@ class Game:
     def b(self):
         self.buttons = []
         if self.gamestate == "main menu":
-            play = textbox(self, self.display, (125, 125), "play", "run")
-            help = textbox(self, self.display, (125, 125), "help", "run")
+            play = textbox(self, self.display, (125, 125), "play", "game")
+            help = textbox(self, self.display, (126, 155), "help", "help")
             self.buttons.extend([play, help])
+        if self.gamestate == "help":
+            main = textbox(self, self.display, (250, 200), "back", "main menu")
+            self.buttons.extend([main])
 
-    
     def game_handler(self):
         while True:
+            self.click = False
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        self.click = True
+                if event.type == pygame.KEYDOWN and self.gamestate == "game":
+                    if event.key == pygame.K_a:
+                        self.move[0] = True
+                    if event.key == pygame.K_d:
+                        self.move[1] = True
+                    if event.key == pygame.K_w or event.key == pygame.K_SPACE:
+                        self.player.jump()
+                    if event.key == pygame.K_q:
+                        self.player.dash()
+                    if event.key == pygame.K_p:
+                        self.player.punch()
+                    if event.key == pygame.K_o:
+                        self.player.cursed_technique()
+                    if event.key == pygame.K_f:
+                        self.player.blocking = True
+                if event.type == pygame.KEYUP and self.gamestate == "game":
+                    if event.key == pygame.K_a:
+                        self.move[0] = False
+                    if event.key == pygame.K_d:
+                        self.move[1] = False
+                    if event.key == pygame.K_f:
+                        self.player.blocking = False
             self.mx, self.my = pygame.mouse.get_pos()
             self.mx /= 2
             self.my /= 2
@@ -78,18 +111,24 @@ class Game:
                 self.main_menu()
             elif self.gamestate == "game":
                 self.run()
+            elif self.gamestate == "help":
+                self.help()
             for button in self.buttons:
                 button.update(self, self.display)
+            self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
             pygame.display.update()
     
     def main_menu(self):
         self.display.blit(self.assets["startup"], (0, 0))
-        self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
         self.clock.tick(60)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+
+    def help(self):
+        self.display.fill((0, 0, 0))
+        text(self, self.display, (10, 10), "ad for horozontal movement")
+        text(self, self.display, (10, 30), "w or space for jumping")
+        text(self, self.display, (10, 50), "p for punching")
+        text(self, self.display, (10, 70), "o is for special")
+        text(self, self.display, (10, 90), "q is for dashing")
 
     def run(self):
         self.scroll[0] += (self.player.rect().centerx - self.display.get_width()/2 - self.scroll[0]) / 30
@@ -112,13 +151,18 @@ class Game:
             if "image" in hitbox:
                 self.display.blit(self.assets[hitbox["image"]], (hitbox["pos"][0]-render_scroll[0], hitbox["pos"][1]-render_scroll[1]))
             if hitbox["timer"] <= 0: 
+                for enemies in self.enemies:
+                    if "id" in hitbox:
+                        if hitbox["id"] in enemies.hitboxs:
+                            enemies.hitboxs.remove(hitbox["id"])
                 self.hitbox.remove(hitbox)
             if hitbox["type"] == "player": 
                 for enemies in self.enemies:
-                    if hit_rect.colliderect(enemies.rect().copy()) and not enemies.stun:
+                    if hit_rect.colliderect(enemies.rect().copy()) and hitbox["id"] not in enemies.hitboxs:
+                        enemies.hitboxs.add(hitbox["id"])
                         enemies.hp -= hitbox["hploss"]
                         enemies.velocity = list(hitbox["speed"])
-                        enemies.stun = hitbox["stun"]
+                        enemies.stun = max(enemies.stun, hitbox["stun"])
                         color = (255, 255, 255)
 
                         if "texture" in hitbox:
@@ -132,14 +176,13 @@ class Game:
                             if hitbox["vel"][0] < 0:
                                 self.sparks.append(Spark([enemies.rect().x+enemies.rect().width, enemies.rect().centery], (-0.5 + random.random()*0.6)*math.pi, 3, color))
             else:
-                if hit_rect.colliderect(self.player.rect().copy()) and abs(self.player.dashing) < 180:
+                if hit_rect.colliderect(self.player.rect().copy()) and not self.player.iframes:
                     self.player.hp -= hitbox["hploss"]
                     if abs(hitbox["speed"][0]) > 1:
                         self.player.velocity[0] = hitbox["speed"][0]
-                        print(self.player.velocity)
                     if abs(hitbox["speed"][1]) > 1:
                         self.player.velocity[1] = hitbox["speed"][1]
-                    print(self.player.velocity)
+                    self.player.iframes = max(self.player.iframes, hitbox["iframes"])
                     self.hitbox.remove(hitbox)
                     for i in range(4):
                         if hitbox["vel"][0] > 0:
@@ -176,32 +219,6 @@ class Game:
 
         self.Tilemap.render(self.display, render_scroll)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_a:
-                    self.move[0] = True
-                if event.key == pygame.K_d:
-                    self.move[1] = True
-                if event.key == pygame.K_w or event.key == pygame.K_SPACE:
-                    self.player.jump()
-                if event.key == pygame.K_q:
-                    self.player.dash()
-                if event.key == pygame.K_p:
-                    self.player.punch()
-                if event.key == pygame.K_o:
-                    self.player.cursed_technique()
-                if event.key == pygame.K_f:
-                    self.player.blocking = True
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_a:
-                    self.move[0] = False
-                if event.key == pygame.K_d:
-                    self.move[1] = False
-                if event.key == pygame.K_f:
-                    self.player.blocking = False
         self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
         self.clock.tick(60)
             
