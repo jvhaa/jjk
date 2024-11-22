@@ -3,6 +3,7 @@ import random
 
 class Physics_Entity:
     def __init__(self, game, e_type, pos, size):
+        self.iframes = 0
         self.game = game
         self.type = e_type
         self.pos = list(pos)
@@ -28,6 +29,7 @@ class Physics_Entity:
     def update(self, tilemap, movement = (0, 0)):
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
         self.velocity[1] = min(5, self.velocity[1]+0.1)
+        self.iframes = max(self.iframes-1, 0)
         if self.velocity[0] > 0:
             self.velocity[0] = max(0, self.velocity[0]-0.1)
         if self.velocity[0] < 0:
@@ -76,13 +78,14 @@ class enemy(Physics_Entity):
         super().__init__(game, type, pos, size)
         self.walking = 0
         self.attack = 0
+        self.hitboxs = set()
 
     def attack4_0(self):
         self.velocity[1] = -2
         self.velocity[0] = random.randint(3, 5)
         if self.flip:
             self.velocity[0] *= -1
-        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": self.velocity, "size": self.size, "speed": (self.velocity[0]*0.6, 0), "type": "enemy", "hploss": 5, "timer": 60, "stun": 5}
+        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": self.velocity, "size": self.size, "speed": (self.velocity[0]*0.6, 0), "type": "enemy", "hploss": 5, "timer": 60, "stun": 5, "iframes":5}
         self.game.hitbox.append(hitbox)
     
     def attack3_0(self):
@@ -90,7 +93,7 @@ class enemy(Physics_Entity):
         ydiff = (self.game.player.pos[1]-self.pos[1]+self.game.player.size[1]/2)
         hyp = (xdiff**2 + ydiff**2) ** 0.5
         speed = (xdiff / hyp*2, ydiff / hyp*2)
-        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": speed, "size": (5,5), "speed" : (speed[0]*1, speed[1]*1), "type": "enemy", "hploss": 2, "timer": 1000, "stun" : 6, "image" : self.type + "/bullet"}
+        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": speed, "size": (5,5), "speed" : (speed[0]*1, speed[1]*1), "type": "enemy", "hploss": 2, "timer": 1000, "stun" : 6, "image" : self.type + "/bullet", "iframes": 6}
         self.game.hitbox.append(hitbox)
 
     def update(self, tilemap):
@@ -139,7 +142,7 @@ class enemy(Physics_Entity):
 
 class grade4_0(enemy):
     def __init__(self, game, pos, size):
-        self.hp = 40
+        self.hp = 30
         self.detecting_range = 150
         self.attack_range = random.randint(100, 120)
         self.cd = 120
@@ -148,7 +151,7 @@ class grade4_0(enemy):
 
 class grade3_0(enemy):
     def __init__(self, game, pos, size):
-        self.hp = 30
+        self.hp = 20
         self.detecting_range = 1000
         self.attack_range = random.randint(300, 700)
         self.cd = 100
@@ -240,6 +243,7 @@ class player(Physics_Entity):
             return True
         
     def dash(self):
+        self.iframes = 10
         if not self.dashing:
             if self.flip:
                 self.dashing = -200
@@ -250,7 +254,7 @@ class player(Physics_Entity):
         alts = pygame.key.get_pressed()
         size = (5, 50)
         vel = (-2 if self.flip else 2, 0)
-        stun = 10
+        stun = 60
         if self.flip:
             pos = [self.rect().centerx-10, self.pos[1]]
         else:
@@ -278,7 +282,7 @@ class player(Physics_Entity):
                     self.set_action("frontsmash")
 
             self.punch_count = (self.punch_count+1)%4
-            hitbox = {"pos": tuple(pos), "vel": vel, "size": size, "speed": power, "type": "player", "hploss": hploss, "timer": time, "stun": stun}
+            hitbox = {"pos": tuple(pos), "vel": vel, "size": size, "speed": power, "type": "player", "hploss": hploss, "timer": time, "stun": stun, "iframes" : stun, "id" : random.randint(0,1000000000000000)}
             self.game.hitbox.append(hitbox)
 
     def cursed_technique(self):
@@ -286,7 +290,7 @@ class player(Physics_Entity):
         size = (5, 50)
         vel = (-2 if self.flip else 2, 0)
         time = 10
-        stun = 10
+        stun = 120
         black_flash = 0
         if self.flip:
             pos = [self.rect().centerx-10, self.pos[1]]
@@ -299,7 +303,7 @@ class player(Physics_Entity):
             hploss = 12 + self.cursed_energy * 0.1
             power = [1 * (-1 if self.flip else 1), -5]
             self.set_action("uppercut")
-            hitbox = {"pos": tuple(pos), "vel": vel, "size": size, "speed": power, "type": "player", "hploss": hploss, "timer": time, "stun": stun}
+            hitbox = {"pos": tuple(pos), "vel": vel, "size": size, "speed": power, "type": "player", "hploss": hploss, "timer": time, "stun": stun, "iframes" : time, "id" : random.randint(0,1000000000000000)}
             self.game.hitbox.append(hitbox)
         elif (alts[pygame.K_d] or alts[pygame.K_a]) and not self.special["side"]:
             if random.randint(0,100)+self.cursed_energy/4 >= 100:
@@ -308,7 +312,7 @@ class player(Physics_Entity):
             hploss = 16 + self.cursed_energy * 0.2
             power = [5 * (-1 if self.flip else 1), 0]
             self.set_action("divfist")
-            hitbox = {"pos": tuple(pos), "vel": vel, "size": size, "speed": power, "type": "player", "hploss": hploss, "timer": time, "stun": stun}
+            hitbox = {"pos": tuple(pos), "vel": vel, "size": size, "speed": power, "type": "player", "hploss": hploss, "timer": time, "stun": stun, "iframes" : stun, "id" : random.randint(0,1000000000000000)}
             if black_flash == 1:
                 hitbox["texture "] = [(0, 0, 0), "black_flash"]
                 hploss *= 1.5

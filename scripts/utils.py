@@ -9,7 +9,9 @@ def load_image(path):
 
 def load_images(path):
     images = []
-    for img_name in sorted(os.listdir(BASE_IMG_LINK + path)):
+    arr = os.listdir(BASE_IMG_LINK + path)
+    arr = sorted(arr, key=lambda x: int(x.split(".")[0]))
+    for img_name in arr:
         images.append((load_image(path + '/' + img_name)))
     return images
 

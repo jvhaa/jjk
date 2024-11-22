@@ -1,4 +1,4 @@
-textindex = "abcdefghijklmnopqrstuvwxyz01234567890 "
+textindex = "abcdefghijklmnopqrstuvwxyz0123456789 "
 
 def text(game, surf, coords, text):
         width = 0
