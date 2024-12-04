@@ -55,9 +55,9 @@ class Game:
         self.Tilemap = TileMap(self)
         self.stars = stars(self.assets["stars"])
         self.hitbox = []
+        self.defense = []
         
         self.scroll = [0, 0]
-        self.load_map(0)
 
         self.gamestate = "main menu"
         self.b()
@@ -65,12 +65,22 @@ class Game:
     def b(self):
         self.buttons = []
         if self.gamestate == "main menu":
-            play = textbox(self, self.display, (125, 125), "play", "game")
+            play = textbox(self, self.display, (125, 125), "play", "levelchooser")
             help = textbox(self, self.display, (126, 155), "help", "help")
             self.buttons.extend([play, help])
         if self.gamestate == "help":
             main = textbox(self, self.display, (250, 200), "back", "main menu")
             self.buttons.extend([main])
+        if self.gamestate == "levelchooser":
+            for y in range(4):
+                for x in range(5):
+                    self.buttons.append(textbox(self, self.display, (x*50+50, y*50+50), str(y*5+x+1), "game " + str(y*5+x+1)))
+        if self.gamestate == "pause":
+            self.display.fill((0, 0, 0, 255))
+            play = textbox(self, self.display, (125, 25), "back", "game")
+            help = textbox(self, self.display, (126, 55), "title", "main menu")
+            self.buttons.extend([play, help])
+                    
 
     def game_handler(self):
         while True:
@@ -79,9 +89,19 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN and self.click == False:
                     if event.button == 1:
                         self.click = True
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        self.click = False
+                if event.type == pygame.KEYDOWN and self.gamestate in ["pause", "game"]:
+                    if event.key == pygame.K_ESCAPE:
+                        if self.gamestate == "pause":
+                            self.gamestate = "game"
+                        else:
+                            self.gamestate = "pause"
+                        self.b()
                 if event.type == pygame.KEYDOWN and self.gamestate == "game":
                     if event.key == pygame.K_a:
                         self.move[0] = True
@@ -113,14 +133,20 @@ class Game:
                 self.run()
             elif self.gamestate == "help":
                 self.help()
+            elif self.gamestate == "levelchooser":
+                self.levelchooser()
             for button in self.buttons:
-                button.update(self, self.display)
+                button.update()
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
             pygame.display.update()
-    
+            self.clock.tick(60)
+
+    def levelchooser(self):
+        self.display.fill((0, 0, 255))
+        text(self, self.display, (100, 20), "choose level")
+
     def main_menu(self):
         self.display.blit(self.assets["startup"], (0, 0))
-        self.clock.tick(60)
 
     def help(self):
         self.display.fill((0, 0, 0))
@@ -144,10 +170,22 @@ class Game:
         self.stars.update()
 
         for hitbox in self.hitbox.copy():
+            if "follow" in hitbox:
+                hitbox["vel"] = hitbox["follow"].velocity
             self.hitbox[self.hitbox.index(hitbox)]["pos"] = (hitbox["pos"][0] + hitbox["vel"][0], hitbox["pos"][1] + hitbox["vel"][1])
             hit_rect = pygame.Rect(hitbox["pos"][0], hitbox["pos"][1], hitbox["size"][0], hitbox["size"][1])
             pygame.draw.rect(self.display, (255, 0, 0), pygame.Rect(hitbox["pos"][0]-render_scroll[0], hitbox["pos"][1]-render_scroll[1], hitbox["size"][0], hitbox["size"][1]))
             self.hitbox[self.hitbox.index(hitbox)]["timer"] -= 1
+            for defens in self.defense:
+                if pygame.Rect(defens["pos"], defens["size"]):
+                    if defens["hp"] > hitbox["hploss"]:
+                        self.hitbox.remove(hitbox)
+                        for i in range(4):
+                            if hitbox["vel"][0] > 0:
+                                self.sparks.append(Spark([enemies.rect().x, enemies.rect().centery], (random.random()*0.6 - 1)*math.pi, 3, color))
+                            if hitbox["vel"][0] < 0:
+                                self.sparks.append(Spark([enemies.rect().x+enemies.rect().width, enemies.rect().centery], (-0.5 + random.random()*0.6)*math.pi, 3, color))
+
             if "image" in hitbox:
                 self.display.blit(self.assets[hitbox["image"]], (hitbox["pos"][0]-render_scroll[0], hitbox["pos"][1]-render_scroll[1]))
             if hitbox["timer"] <= 0: 
@@ -195,9 +233,9 @@ class Game:
             enemy.update(self.Tilemap)
             enemy.render(self.display, render_scroll)
             if enemy.hp <= 0:
-                self.enemies.remove(enemy)
                 for i in range(8):
                     self.sparks.append(Spark(enemies.rect().center, random.random()-0.5+math.pi, 4))
+                self.enemies.remove(enemy)
 
         self.player.update(self.Tilemap, ((self.move[1]-self.move[0]), 0))
         self.player.render(self.display, render_scroll)
@@ -220,7 +258,6 @@ class Game:
         self.Tilemap.render(self.display, render_scroll)
 
         self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
-        self.clock.tick(60)
             
     def load_map(self, map_id):
         self.Tilemap.load("maps/" + str(map_id) + ".json")

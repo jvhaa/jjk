@@ -28,6 +28,9 @@ class Physics_Entity:
 
     def update(self, tilemap, movement = (0, 0)):
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
+
+        self.pos = [self.pos[0]+self.anim_offset[0], self.pos[1]+self.anim_offset[1]]
+
         self.velocity[1] = min(5, self.velocity[1]+0.1)
         self.iframes = max(self.iframes-1, 0)
         if self.velocity[0] > 0:
@@ -85,7 +88,7 @@ class enemy(Physics_Entity):
         self.velocity[0] = random.randint(3, 5)
         if self.flip:
             self.velocity[0] *= -1
-        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": self.velocity, "size": self.size, "speed": (self.velocity[0]*0.6, 0), "type": "enemy", "hploss": 5, "timer": 60, "stun": 5, "iframes":5}
+        hitbox = {"pos": (self.pos[0], self.pos[1]), "size": self.size, "speed": (self.velocity[0]*0.6, 0), "type": "enemy", "hploss": 5, "timer": 60, "stun": 5, "iframes": 20, "follow": self}
         self.game.hitbox.append(hitbox)
     
     def attack3_0(self):
@@ -93,7 +96,7 @@ class enemy(Physics_Entity):
         ydiff = (self.game.player.pos[1]-self.pos[1]+self.game.player.size[1]/2)
         hyp = (xdiff**2 + ydiff**2) ** 0.5
         speed = (xdiff / hyp*2, ydiff / hyp*2)
-        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": speed, "size": (5,5), "speed" : (speed[0]*1, speed[1]*1), "type": "enemy", "hploss": 2, "timer": 1000, "stun" : 6, "image" : self.type + "/bullet", "iframes": 6}
+        hitbox = {"pos": (self.pos[0], self.pos[1]), "vel": speed, "size": (5,5), "speed" : (speed[0]*1, speed[1]*1), "type": "enemy", "hploss": 2, "timer": 1000, "stun" : 6, "image" : self.type + "/bullet", "iframes": 20}
         self.game.hitbox.append(hitbox)
 
     def update(self, tilemap):
@@ -216,9 +219,11 @@ class player(Physics_Entity):
                 self.set_action("idle")
     
     def render(self, surf, scroll=(0, 0)):
-        super().render(surf, scroll)
+        if self.iframes not in [1, 2, 3, 4,6,8, 10, 13, 16, 20]:
+            super().render(surf, scroll)
 
     def block(self):
+        self.game
         pass
 
     def jump(self):
@@ -252,7 +257,7 @@ class player(Physics_Entity):
     
     def punch(self):
         alts = pygame.key.get_pressed()
-        size = (5, 50)
+        size = (5, 37)
         vel = (-2 if self.flip else 2, 0)
         stun = 60
         if self.flip:
@@ -287,7 +292,7 @@ class player(Physics_Entity):
 
     def cursed_technique(self):
         alts = pygame.key.get_pressed()
-        size = (5, 50)
+        size = (5, 37)
         vel = (-2 if self.flip else 2, 0)
         time = 10
         stun = 120

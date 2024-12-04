@@ -22,7 +22,6 @@ class Animation:
         self.loop = loop
         self.done = False
         self.frames = 0
-        self.size = [0, 0]
 
     def copy(self):
         return Animation(self.images, self.img_dur, self.loop)
@@ -34,8 +33,10 @@ class Animation:
             self.frames = min(self.frames+1 , self.img_dur * len(self.images)-1)
             if self.frames >= self.img_dur * len(self.images) - 1:
                 self.done = True
-        self.size = self.img().get_size()
 
     def img(self):
         return self.images[int(self.frames/ self.img_dur)]
+
+    def size(self):
+        return self.images[int(self.frames/self.img_dur)].get_size()
         
